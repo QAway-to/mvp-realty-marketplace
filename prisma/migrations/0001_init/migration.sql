@@ -1,5 +1,14 @@
 -- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
+CREATE SCHEMA IF NOT EXISTS "realty";
+
+-- База общая с другими проектами, и имена вроде "User" или "City" в ней не
+-- уникальны. Имена в этой миграции не квалифицированы схемой, поэтому задаём
+-- search_path явно: так DDL ляжет в нашу схему даже при применении файла руками
+-- через psql, а не только через prisma migrate deploy.
+--
+-- Схема прибита именем: миграция — исторический артефакт. Если менять
+-- DATABASE_SCHEMA, миграции нужно перегенерировать.
+SET search_path TO "realty";
 
 -- CreateEnum
 CREATE TYPE "Role" AS ENUM ('AGENT', 'ADMIN');

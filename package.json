@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:generate": "prisma generate",
-    "db:migrate": "npm run db:setup && prisma migrate dev",
+    "db:migrate": "tsx prisma/guard-local.ts && npm run db:setup && prisma migrate dev",
     "db:deploy": "npm run db:setup && prisma migrate deploy",
     "prebuild": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
@@ -24,8 +24,10 @@
     "bcryptjs": "^3.0.3",
     "next": "16.3.6",
     "pg": "^8.23.0",
+    "prisma": "^7.10.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "tsx": "^4.23.15",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -37,9 +39,7 @@
     "@vitest/coverage-v8": "^5.0.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.6",
-    "prisma": "^7.10.0",
     "tailwindcss": "^4",
-    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.0.2"
   },
