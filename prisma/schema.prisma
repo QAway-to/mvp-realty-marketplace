@@ -1,0 +1,364 @@
+// Модель данных внутреннего marketplace объектов недвижимости.
+// Словарь и обоснование полей — docs/DOMAIN.md. Правим их вместе.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Строка подключения живёт в prisma.config.ts: Prisma 7 не принимает `url`
+// в схеме, и это к лучшему — в описании данных секретам не место.
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Пользователи ────────────────────────────────────────────────────────────
+// Открытой регистрации нет: запись создаёт админ, пароль пользователь задаёт по
+// одноразовой ссылке приглашения.
+
+enum Role {
+  AGENT
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String?
+  name         String
+  phone        String?
+  role         Role      @default(AGENT)
+  isActive     Boolean   @default(true)
+  invitedAt    DateTime  @default(now())
+  lastLoginAt  DateTime?
+
+  properties   Property[]
+  selections   Selection[]
+  savedSearches SavedSearch[]
+  invites      Invite[]
+  activityLog  ActivityLog[]
+
+  @@index([isActive])
+}
+
+// Приглашение живёт отдельно от User: в базе хранится только хеш токена, сам
+// токен существует лишь в ссылке, которую админ передаёт человеку.
+model Invite {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Справочники ─────────────────────────────────────────────────────────────
+// Не удаляем, а архивируем: объекты ссылаются на эти записи годами.
+
+model City {
+  id         String     @id @default(cuid())
+  name       String
+  isArchived Boolean    @default(false)
+  districts  District[]
+  properties Property[]
+
+  @@unique([name])
+}
+
+model District {
+  id         String     @id @default(cuid())
+  name       String
+  cityId     String
+  isArchived Boolean    @default(false)
+
+  city       City       @relation(fields: [cityId], references: [id])
+  complexes  Complex[]
+  properties Property[]
+
+  @@unique([cityId, name])
+  @@index([cityId])
+}
+
+model Complex {
+  id         String     @id @default(cuid())
+  name       String
+  developer  String?
+  districtId String
+  latitude   Float?
+  longitude  Float?
+  isArchived Boolean    @default(false)
+
+  district   District   @relation(fields: [districtId], references: [id])
+  properties Property[]
+
+  @@unique([districtId, name])
+  @@index([districtId])
+}
+
+// ─── Объект ──────────────────────────────────────────────────────────────────
+
+enum DealType {
+  SALE
+  RENT
+}
+
+enum PropertyStatus {
+  DRAFT
+  ACTIVE
+  RESERVED
+  SOLD
+  RENTED
+  WITHDRAWN
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  LAND
+  COMMERCIAL
+}
+
+enum BuildingType {
+  PANEL
+  BRICK
+  MONOLITH
+  BLOCK
+  WOOD
+}
+
+enum Renovation {
+  NONE
+  COSMETIC
+  EURO
+  DESIGNER
+}
+
+enum BalconyType {
+  NONE
+  BALCONY
+  LOGGIA
+}
+
+model Property {
+  id       String         @id @default(cuid())
+  dealType DealType
+  status   PropertyStatus @default(DRAFT)
+
+  // Цена — целое число в единицах валюты: копейки в недвижимости не нужны, а
+  // Float в деньгах даёт расхождения там, где их никто не ждёт. BigInt, потому
+  // что коммерческий объект спокойно выходит за пределы Int32.
+  price       BigInt
+  currency    String @default("RUB")
+  // Расчётная величина, но живёт колонкой: по ней сортируют и фильтруют, а
+  // считать её в запросе означает потерять индекс.
+  pricePerSqm Int?
+
+  commissionPercent Float? // внутреннее, не отдаём наружу
+
+  propertyType PropertyType
+  buildingType BuildingType?
+
+  areaTotal   Float
+  areaLiving  Float?
+  areaKitchen Float?
+  landArea    Float?
+
+  rooms         Int? // 0 — студия
+  floor         Int?
+  floorsTotal   Int?
+  bathrooms     Int?
+  balcony       BalconyType @default(NONE)
+  ceilingHeight Float?
+
+  renovation Renovation?
+  builtYear  Int?
+  parking    Boolean     @default(false)
+
+  cityId          String
+  districtId      String?
+  complexId       String?
+  street          String?
+  houseNumber     String?
+  apartmentNumber String? // внутреннее, не отдаём наружу
+  latitude        Float?
+  longitude       Float?
+
+  title         String
+  description   String?
+  internalNotes String? // внутреннее, не отдаём наружу
+
+  ownerId     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  publishedAt DateTime?
+  deletedAt   DateTime?
+
+  // Денормализация под фильтры выдачи. Пересчитывается в той же транзакции,
+  // что и правка туров, фото и этажности. `isLastFloor` существует потому, что
+  // «не последний этаж» — это сравнение двух колонок, а такой предикат не
+  // индексируется и не выражается в Prisma без сырого SQL.
+  hasTour     Boolean @default(false)
+  imagesCount Int     @default(0)
+  isLastFloor Boolean @default(false)
+
+  city      City      @relation(fields: [cityId], references: [id])
+  district  District? @relation(fields: [districtId], references: [id])
+  complex   Complex?  @relation(fields: [complexId], references: [id])
+  owner     User?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+
+  images         PropertyImage[]
+  tours          VirtualTour[]
+  selectionItems SelectionItem[]
+  shareLinks     ShareLink[]
+  activityLog    ActivityLog[]
+
+  // Комбинации из docs/DOMAIN.md, раздел «Индексы».
+  @@index([dealType, status, price])
+  @@index([dealType, status, propertyType, rooms])
+  @@index([districtId, dealType, status])
+  @@index([complexId, dealType, status])
+  @@index([hasTour, dealType, status])
+  @@index([createdAt])
+  @@index([ownerId])
+}
+
+model PropertyImage {
+  id         String @id @default(cuid())
+  propertyId String
+  storageKey String
+  width      Int?
+  height     Int?
+  sortOrder  Int    @default(0)
+  isCover    Boolean @default(false)
+  alt        String?
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, sortOrder])
+}
+
+// ─── 3D-тур ──────────────────────────────────────────────────────────────────
+// Ключевая фича продукта и единственное место, где в систему попадает внешний
+// URL для встраивания. Правила валидации — docs/adr/0002-3d-tour-embedding.md.
+
+enum TourProvider {
+  MATTERPORT
+  KUULA
+  OTHER
+}
+
+model VirtualTour {
+  id         String       @id @default(cuid())
+  propertyId String
+  provider   TourProvider
+  // Что вставил агент. Храним как есть, чтобы можно было разобраться, если
+  // провайдер сменит формат ссылок.
+  sourceUrl  String
+  // Собран нами из разобранного идентификатора тура, а не склеен из ввода.
+  // null, если провайдер не поддерживает встраивание — тогда показываем кнопку.
+  embedUrl     String?
+  isEmbeddable Boolean @default(false)
+  createdAt    DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+}
+
+// ─── Подборки и ссылки клиенту ───────────────────────────────────────────────
+
+model Selection {
+  id            String   @id @default(cuid())
+  agentId       String
+  name          String
+  clientComment String?
+  createdAt     DateTime @default(now())
+
+  agent      User            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  items      SelectionItem[]
+  shareLinks ShareLink[]
+
+  @@index([agentId])
+}
+
+model SelectionItem {
+  id          String @id @default(cuid())
+  selectionId String
+  propertyId  String
+  sortOrder   Int    @default(0)
+
+  selection Selection @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  property  Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([selectionId, propertyId])
+  @@index([selectionId, sortOrder])
+}
+
+// Ссылка ведёт либо на подборку, либо на один объект — ровно на одно из двух.
+model ShareLink {
+  id           String    @id @default(cuid())
+  token        String    @unique
+  selectionId  String?
+  propertyId   String?
+  createdById  String?
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  viewsCount   Int       @default(0)
+  lastViewedAt DateTime?
+
+  selection Selection? @relation(fields: [selectionId], references: [id], onDelete: Cascade)
+  property  Property?  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  views     ShareView[]
+
+  @@index([selectionId])
+  @@index([propertyId])
+}
+
+// Счётчик для агента, а не аналитика. IP и прочих персональных данных клиента
+// здесь сознательно нет.
+model ShareView {
+  id            String   @id @default(cuid())
+  shareLinkId   String
+  viewedAt      DateTime @default(now())
+  userAgentHash String?
+
+  shareLink ShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+
+  @@index([shareLinkId, viewedAt])
+}
+
+// ─── Сохранённый поиск и журнал ──────────────────────────────────────────────
+
+// Храним ровно ту строку запроса, что уходит в URL выдачи: один формат для
+// ссылки, закладки и сохранённого поиска, один парсер на всё.
+model SavedSearch {
+  id          String   @id @default(cuid())
+  agentId     String
+  name        String
+  queryString String
+  createdAt   DateTime @default(now())
+
+  agent User @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, name])
+  @@index([agentId])
+}
+
+model ActivityLog {
+  id            String   @id @default(cuid())
+  propertyId    String
+  userId        String?
+  action        String
+  changedFields Json?
+  createdAt     DateTime @default(now())
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId, createdAt])
+}

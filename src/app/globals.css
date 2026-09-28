@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/**
+ * Токены дизайн-системы Airbnb (design-md/DESIGN.md): белое полотно, одно
+ * брендовое напряжение Rausch на главных действиях, мягкие радиусы, воздух.
+ * Значения не подбираем на глаз — берём из файла системы.
+ */
+@theme {
+  --color-rausch: #ff385c;
+  --color-rausch-active: #e00b41;
+  --color-rausch-disabled: #ffd1da;
+  --color-error: #c13515;
+
+  --color-ink: #222222;
+  --color-body: #3f3f3f;
+  --color-muted: #6a6a6a;
+  --color-muted-soft: #929292;
+
+  --color-hairline: #dddddd;
+  --color-hairline-soft: #ebebeb;
+  --color-border-strong: #c1c1c1;
+
+  --color-canvas: #ffffff;
+  --color-surface-soft: #f7f7f7;
+  --color-surface-strong: #f2f2f2;
+
+  --radius-card: 14px;
+  --radius-control: 8px;
+  --radius-pill: 9999px;
+
+  --font-sans:
+    "Airbnb Cereal VF", Circular, -apple-system, system-ui, "Segoe UI", Roboto,
+    "Helvetica Neue", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Видимый фокус — обязателен: фильтрами пользуются с клавиатуры. */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* Скрываем полосу прокрутки у горизонтальных лент, сама прокрутка остаётся. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
