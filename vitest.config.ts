@@ -7,6 +7,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // Тесты на bcrypt медленные по устройству: хеширование должно стоить времени.
+    // Пять секунд по умолчанию они иногда не успевали.
+    testTimeout: 20_000,
     include: ["src/**/*.test.ts"],
     coverage: {
       provider: "v8",

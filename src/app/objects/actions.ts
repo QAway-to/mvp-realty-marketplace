@@ -12,6 +12,7 @@ import {
   parsePropertyForm,
   type PropertyFormInput,
 } from "@/lib/property-form";
+import { fetchTourPreview } from "@/lib/tour-preview";
 import { parseTourUrl } from "@/lib/tours";
 
 /**
@@ -41,6 +42,7 @@ async function replaceTour(
   tx: Parameters<Parameters<ReturnType<typeof getPrisma>["$transaction"]>[0]>[0],
   propertyId: string,
   tourUrl: string | undefined,
+  preview: string | null,
 ): Promise<void> {
   await tx.virtualTour.deleteMany({ where: { propertyId } });
   if (tourUrl === undefined) return;
@@ -56,8 +58,23 @@ async function replaceTour(
       sourceUrl: parsed.tour.sourceUrl,
       embedUrl: parsed.tour.embedUrl,
       isEmbeddable: parsed.tour.isEmbeddable,
+      previewImageUrl: preview,
     },
   });
+}
+
+/**
+ * Превью тура тянем ДО транзакции: сетевой запрос к чужому серверу внутри
+ * транзакции держал бы её открытой на секунды и занимал соединение с базой.
+ * Неудача не мешает сохранению — обложка просто останется заглушкой.
+ */
+async function resolvePreview(tourUrl: string | undefined): Promise<string | null> {
+  if (tourUrl === undefined) return null;
+
+  const parsed = parseTourUrl(tourUrl);
+  if (!parsed.ok) return null;
+
+  return fetchTourPreview(parsed.tour.sourceUrl, parsed.tour.provider);
 }
 
 export async function createProperty(
@@ -87,6 +104,8 @@ export async function createProperty(
     return { errors: { cityId: "Выберите город" }, message: null };
   }
 
+  const preview = await resolvePreview(parsed.data.tourUrl);
+
   const created = await getPrisma().$transaction(async (tx) => {
     const property = await tx.property.create({
       data: {
@@ -99,7 +118,7 @@ export async function createProperty(
       select: { id: true },
     });
 
-    await replaceTour(tx, property.id, parsed.data.tourUrl);
+    await replaceTour(tx, property.id, parsed.data.tourUrl, preview);
 
     await tx.activityLog.create({
       data: {
@@ -160,6 +179,7 @@ export async function updateProperty(
   }
 
   const shouldPublish = wantsPublish && existing.status === "DRAFT";
+  const preview = await resolvePreview(parsed.data.tourUrl);
 
   await prisma.$transaction(async (tx) => {
     await tx.property.update({
@@ -173,7 +193,7 @@ export async function updateProperty(
       },
     });
 
-    await replaceTour(tx, propertyId, parsed.data.tourUrl);
+    await replaceTour(tx, propertyId, parsed.data.tourUrl, preview);
 
     await tx.activityLog.create({
       data: {

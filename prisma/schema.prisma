@@ -290,6 +290,9 @@ model VirtualTour {
   // null, если провайдер не поддерживает встраивание — тогда показываем кнопку.
   embedUrl     String?
   isEmbeddable Boolean @default(false)
+  // Обложка карточки — `og:image` со страницы тура. Живёт у тура, а не у
+  // объекта: меняется ссылка — меняется и превью. См. src/lib/tour-preview.ts.
+  previewImageUrl String?
   createdAt    DateTime @default(now())
 
   property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)

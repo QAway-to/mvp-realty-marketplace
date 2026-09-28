@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 
+import { TOUR_IMAGE_SOURCES } from "./src/lib/tour-preview";
 import { TOUR_FRAME_SOURCES } from "./src/lib/tours";
 
 /**
@@ -10,7 +11,8 @@ import { TOUR_FRAME_SOURCES } from "./src/lib/tours";
 const contentSecurityPolicy = [
   "default-src 'self'",
   `frame-src ${TOUR_FRAME_SOURCES.join(" ")}`,
-  "img-src 'self' data: blob:",
+  // Обложки карточек лежат на CDN провайдера туров, иначе браузер их срежет.
+  `img-src 'self' data: blob: ${TOUR_IMAGE_SOURCES.join(" ")}`,
   "style-src 'self' 'unsafe-inline'",
   // 'unsafe-eval' нужен только dev-режиму Next для HMR.
   process.env.NODE_ENV === "production"

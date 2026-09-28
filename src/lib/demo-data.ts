@@ -57,7 +57,7 @@ const make = (
   street,
   hasTour,
   imagesCount,
-  coverUrl: null,
+  coverUrl: DEMO_COVERS[id] ?? null,
   propertyType,
   isLastFloor: floor !== null && floor === floorsTotal,
   parking,
@@ -70,6 +70,26 @@ export const DEMO_DISTRICTS = [
   { id: "d-north", name: "Северный" },
   { id: "d-park", name: "Парковый" },
 ] as const;
+
+/**
+ * Обложки демо-карточек — `og:image` соответствующих туров, снятые запросом
+ * 28.09.2026. У настоящих объектов это поле заполняется само при сохранении
+ * ссылки на тур (`fetchTourPreview`); здесь адреса зафиксированы, потому что
+ * демо-набор не должен делать десять запросов к чужому CDN на каждый рендер.
+ * Если провайдер их перевыпустит, карточки вернутся к заглушкам.
+ */
+const DEMO_COVERS: Readonly<Record<string, string>> = {
+  "p-01": "https://global-image-4.realsee-cdn.com/release/screenshot/auto3d-light-DP61MqkvDQL0WpAV/8d0c03ce115351c9c9b3e94cdee3bd5b/1757467492_19/pc0_m4WlnW170.jpg?imageMogr2/quality/70/thumbnail/1024x",
+  "p-02": "https://global-image-4.realsee-cdn.com/release/auto3dhd/b17621a0cdb79aebc8ec82b1d622ab3d/screenshot/1660531501_0/pc0_5HoiAFmH0.jpg?imageMogr2/quality/70/thumbnail/1024x",
+  "p-03": "https://global-image-4.realsee-cdn.com/release/uwork/vrcustomer/3oqEJPjdlIXR4OtqoN/1751938058_16/pc0_CwAJcZDxx.jpg?imageMogr2/quality/70/thumbnail/1024x",
+  "p-04": "https://global-image-4.realsee-cdn.com/release/screenshot/auto3d-light-DP61Mqkv14r0WpAV/da6732af35dbe99d479cd2486e2393f5/1746933104_77/pc0_BuKgv1h56.jpg?imageMogr2/quality/70/thumbnail/1024x",
+  "p-05": "https://global-image-4.realsee-cdn.com/release/auto3dhd/7764348d374e6a6f1cfd200030ae8c83/screenshot/1661816280_0/pc0_k7tovwxCr.jpg?imageMogr2/quality/70/thumbnail/1024x",
+  "p-06": "https://global-image-4.realsee-cdn.com/release/screenshot/pano-v9jQrqokLLPqxm81/5716da2e14c4991f8f66380ad2d77483/1747054958_1/pc0_OPrNyY3QV.jpg?imageMogr2/quality/70/thumbnail/1024x",
+  "p-07": "https://global-image-4.realsee-cdn.com/release/uwork/vrcustomer/vml6dWRGZCLWnjH2o4/auto3d-light-4lWOVdxKRvPVdo1z_1755567350_446/pc0_am1bHvIMs.jpg?imageMogr2/quality/70/thumbnail/1024x",
+  "p-08": "https://global-image-4.realsee-cdn.com/release/screenshot/auto3d-light-praQgRdBE6wq6xZo/7c0013bf1be2cf80cde10838f8e2c8c5/1741238019_0/pc0_nPUYyM7uJ.jpg?imageMogr2/quality/70/thumbnail/1024x",
+  "p-09": "https://global-image-4.realsee-cdn.com/release/screenshot/auto3d-light-EpwaQRVo94r0xb9B-copy/409f50e665873faa7df65e4e38176271/1744714275_39/pc0_01IrgWBla.jpg?imageMogr2/quality/70/thumbnail/1024x",
+  "p-10": "https://global-image-4.realsee-cdn.com/release/screenshot/mixture-cloud-OQMwr0gnGzbR4Zjg/53836b72a911c251b74426b9c99431b2/auto3d-light-b6d1M0b2vzy07DrG-copy_1744645823_105/pc0_AsNEGDsX9.jpg?imageMogr2/quality/70/thumbnail/1024x",
+};
 
 export const DEMO_PROPERTIES: readonly DemoProperty[] = [
   // ─── С 3D-туром: у каждого свой, название согласовано с тем, что внутри ───

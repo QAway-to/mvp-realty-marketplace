@@ -11,6 +11,7 @@ import {
   formatRooms,
 } from "@/lib/format";
 import { getProperty, isDemoMode } from "@/lib/properties";
+import { thumbnailUrl } from "@/lib/tour-preview";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -102,23 +103,29 @@ export default async function PropertyPage(props: PageProps<"/catalog/[id]">) {
 
           <section className="flex flex-col gap-3">
             <h2 className="text-[20px] font-semibold tracking-tight">Фотографии</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {Array.from({ length: Math.min(property.imagesCount, 6) }).map(
-                (_, index) => (
-                  <div
-                    key={index}
-                    className="grid aspect-4/3 place-items-center rounded-[var(--radius-control)] bg-gradient-to-br from-surface-strong to-surface-soft"
-                  >
-                    <span className="text-2xl opacity-20" aria-hidden="true">
-                      🏠
-                    </span>
-                  </div>
-                ),
-              )}
-            </div>
-            <p className="text-[13px] text-muted">
-              Заглушки: загрузка фото появится вместе с хранилищем, см. adr/0003.
-            </p>
+            {property.coverUrl !== null ? (
+              <>
+                <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface-soft">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- картинка с CDN провайдера тура */}
+                  <img
+                    src={thumbnailUrl(property.coverUrl, 1024)}
+                    alt={property.title}
+                    className="aspect-video w-full object-cover"
+                  />
+                </div>
+                <p className="text-[13px] text-muted">
+                  Это кадр из 3D-тура. Свои фотографии появятся вместе с
+                  хранилищем — см. adr/0003.
+                </p>
+              </>
+            ) : (
+              <div className="rounded-[var(--radius-card)] border border-dashed border-hairline bg-surface-soft p-8 text-center">
+                <p className="text-sm text-muted">
+                  Фотографий пока нет. Загрузка появится вместе с хранилищем,
+                  см. adr/0003.
+                </p>
+              </div>
+            )}
           </section>
         </div>
 

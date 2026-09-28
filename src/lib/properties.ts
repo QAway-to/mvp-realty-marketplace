@@ -43,6 +43,12 @@ const CARD_SELECT = {
     select: { storageKey: true },
     take: 1,
   },
+  // Превью тура — обложка для объектов, у которых ещё нет своих фотографий.
+  tours: {
+    where: { previewImageUrl: { not: null } },
+    select: { previewImageUrl: true },
+    take: 1,
+  },
 } as const;
 
 type CardRow = {
@@ -61,6 +67,7 @@ type CardRow = {
   readonly district: { readonly name: string } | null;
   readonly complex: { readonly name: string } | null;
   readonly images: readonly { readonly storageKey: string }[];
+  readonly tours: readonly { readonly previewImageUrl: string | null }[];
 };
 
 const toCardView = (row: CardRow): PropertyCardView => ({
@@ -81,7 +88,8 @@ const toCardView = (row: CardRow): PropertyCardView => ({
   street: row.street,
   hasTour: row.hasTour,
   imagesCount: row.imagesCount,
-  coverUrl: row.images[0]?.storageKey ?? null,
+  // Своя фотография важнее: превью тура — заглушка на время, пока фото нет.
+  coverUrl: row.images[0]?.storageKey ?? row.tours[0]?.previewImageUrl ?? null,
 });
 
 export type PropertyDetail = PropertyCardView & {
@@ -134,7 +142,7 @@ export async function getProperty(
       description: true,
       parking: true,
       status: true,
-      tours: { select: { sourceUrl: true }, take: 1 },
+      tours: { select: { sourceUrl: true, previewImageUrl: true }, take: 1 },
     },
   });
 
