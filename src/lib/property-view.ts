@@ -13,9 +13,9 @@ export type PropertyCardView = {
   readonly id: string;
   readonly title: string;
   readonly dealType: DealType;
-  readonly price: number;
+  readonly price: number | null;
   readonly pricePerSqm: number | null;
-  readonly areaTotal: number;
+  readonly areaTotal: number | null;
   readonly rooms: number | null;
   readonly floor: number | null;
   readonly floorsTotal: number | null;

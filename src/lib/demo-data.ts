@@ -14,6 +14,9 @@ import type { Filters } from "./filters";
 import type { PropertyCardView } from "./property-view";
 
 type DemoProperty = PropertyCardView & {
+  // В демо-наборе цена и площадь заданы у всех — в отличие от черновиков в базе.
+  readonly price: number;
+  readonly areaTotal: number;
   readonly propertyType: "apartment" | "house" | "land" | "commercial";
   readonly districtId: string;
   readonly isLastFloor: boolean;

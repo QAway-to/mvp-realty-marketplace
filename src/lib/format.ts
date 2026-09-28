@@ -8,12 +8,18 @@ const RUB = new Intl.NumberFormat("ru-RU", {
 
 const NUMBER = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 1 });
 
-export const formatPrice = (value: number) => RUB.format(value);
+/**
+ * Цена и площадь у черновика могут быть не заполнены. Ноль вместо пустого
+ * значения вводит в заблуждение — «ноль рублей» и «цена не названа» это разное.
+ */
+export const formatPrice = (value: number | null) =>
+  value === null ? "Цена не указана" : RUB.format(value);
 
-export const formatPricePerSqm = (value: number) =>
-  `${NUMBER.format(value)} ₽/м²`;
+export const formatPricePerSqm = (value: number | null) =>
+  value === null ? null : `${NUMBER.format(value)} ₽/м²`;
 
-export const formatArea = (value: number) => `${NUMBER.format(value)} м²`;
+export const formatArea = (value: number | null) =>
+  value === null ? null : `${NUMBER.format(value)} м²`;
 
 /** «Студия» — не ноль комнат, а отдельный тип планировки. */
 export const formatRooms = (rooms: number | null) => {

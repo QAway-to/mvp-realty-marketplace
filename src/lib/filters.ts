@@ -10,6 +10,7 @@
 
 import { z } from "zod";
 import type { $Enums, Prisma } from "@/generated/prisma/client";
+import { blankToUndefined } from "./zod-helpers";
 
 export const PAGE_SIZE = 24;
 
@@ -44,10 +45,6 @@ export type SortToken = (typeof SORT_TOKENS)[number];
  * отдельная таблица переводов была бы лишней сущностью.
  */
 const toEnum = <T extends string>(token: string): T => token.toUpperCase() as T;
-
-/** Пустой параметр — это отсутствующий параметр, а не нуль и не ошибка. */
-const blankToUndefined = (raw: unknown) =>
-  typeof raw === "string" && raw.trim() === "" ? undefined : raw;
 
 const intParam = z.preprocess(
   blankToUndefined,

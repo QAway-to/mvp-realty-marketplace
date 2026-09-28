@@ -10,7 +10,7 @@ import {
   formatPricePerSqm,
   formatRooms,
 } from "@/lib/format";
-import { isDemoMode } from "@/lib/properties";
+import { getProperty, isDemoMode } from "@/lib/properties";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -24,18 +24,26 @@ function Row({ label, value }: { label: string; value: string }) {
 export default async function PropertyPage(props: PageProps<"/catalog/[id]">) {
   const { id } = await props.params;
 
-  // Пока источник — демо-данные. С появлением базы здесь встанет `getProperty`
-  // из `properties.ts` с тем же явным списком полей.
-  if (!isDemoMode()) notFound();
+  // Демо-режим и база отличаются только источником; дальше страница одна и та же.
+  const fromDemo = isDemoMode() ? findDemoProperty(id) : null;
+  // Каталог закрыт входом, поэтому сотруднику показываем и черновики: он их и
+  // завёл. Публичная ссылка клиенту будет читать этот же объект как "client".
+  const fromDb = isDemoMode() ? null : await getProperty(id, "staff");
 
-  const property = findDemoProperty(id);
+  const property = fromDemo ?? fromDb;
   if (property === null) notFound();
 
-  const tourUrl = DEMO_TOURS[property.id] ?? null;
+  const tourUrl =
+    fromDemo !== null ? (DEMO_TOURS[fromDemo.id] ?? null) : (fromDb?.tourSourceUrl ?? null);
+
+  const parking = fromDemo !== null ? fromDemo.parking : (fromDb?.parking ?? false);
+
+  const area = formatArea(property.areaTotal);
+  const pricePerSqm = formatPricePerSqm(property.pricePerSqm);
 
   const rows = [
     { label: "Тип сделки", value: property.dealType === "SALE" ? "Продажа" : "Аренда" },
-    { label: "Площадь", value: formatArea(property.areaTotal) },
+    ...(area !== null ? [{ label: "Площадь", value: area }] : []),
     ...(formatRooms(property.rooms) !== null
       ? [{ label: "Комнат", value: formatRooms(property.rooms) as string }]
       : []),
@@ -47,8 +55,8 @@ export default async function PropertyPage(props: PageProps<"/catalog/[id]">) {
           },
         ]
       : []),
-    ...(property.pricePerSqm !== null
-      ? [{ label: "Цена за м²", value: formatPricePerSqm(property.pricePerSqm) }]
+    ...(pricePerSqm !== null
+      ? [{ label: "Цена за м²", value: pricePerSqm }]
       : []),
     ...(property.districtName !== null
       ? [{ label: "Район", value: property.districtName }]
@@ -56,7 +64,7 @@ export default async function PropertyPage(props: PageProps<"/catalog/[id]">) {
     ...(property.complexName !== null
       ? [{ label: "ЖК", value: property.complexName }]
       : []),
-    { label: "Парковка", value: property.parking ? "Есть" : "Нет" },
+    { label: "Парковка", value: parking ? "Есть" : "Нет" },
   ];
 
   return (

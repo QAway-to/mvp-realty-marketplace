@@ -36,9 +36,32 @@ model User {
   selections   Selection[]
   savedSearches SavedSearch[]
   invites      Invite[]
+  sessions     Session[]
   activityLog  ActivityLog[]
 
   @@index([isActive])
+}
+
+/**
+ * Сессия хранится в базе, а не в подписанном токене.
+ *
+ * Требование из PRD: после отключения пользователя его сессия должна перестать
+ * работать на следующем же запросе. С самодостаточным JWT так не выйдет — он
+ * действителен, пока не истёк, и отозвать его нечем. В cookie уходит случайный
+ * токен, в базе лежит только его хеш.
+ */
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // Приглашение живёт отдельно от User: в базе хранится только хеш токена, сам
@@ -151,7 +174,11 @@ model Property {
   // Цена — целое число в единицах валюты: копейки в недвижимости не нужны, а
   // Float в деньгах даёт расхождения там, где их никто не ждёт. BigInt, потому
   // что коммерческий объект спокойно выходит за пределы Int32.
-  price       BigInt
+  //
+  // Необязательна, как и площадь: черновик заводится по ходу разговора с
+  // собственником, когда цифр ещё нет. Обязательными они становятся при
+  // публикации — проверка в src/lib/property-form.ts.
+  price       BigInt?
   currency    String @default("RUB")
   // Расчётная величина, но живёт колонкой: по ней сортируют и фильтруют, а
   // считать её в запросе означает потерять индекс.
@@ -162,7 +189,7 @@ model Property {
   propertyType PropertyType
   buildingType BuildingType?
 
-  areaTotal   Float
+  areaTotal   Float?
   areaLiving  Float?
   areaKitchen Float?
   landArea    Float?

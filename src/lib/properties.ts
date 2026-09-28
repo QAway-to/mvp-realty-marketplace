@@ -49,9 +49,9 @@ type CardRow = {
   readonly id: string;
   readonly title: string;
   readonly dealType: "SALE" | "RENT";
-  readonly price: bigint;
+  readonly price: bigint | null;
   readonly pricePerSqm: number | null;
-  readonly areaTotal: number;
+  readonly areaTotal: number | null;
   readonly rooms: number | null;
   readonly floor: number | null;
   readonly floorsTotal: number | null;
@@ -69,7 +69,8 @@ const toCardView = (row: CardRow): PropertyCardView => ({
   dealType: row.dealType,
   // Цена в базе BigInt ради больших коммерческих сумм, в браузер уходит числом:
   // BigInt не сериализуется, а рублёвые суммы в Number укладываются с запасом.
-  price: Number(row.price),
+  // null остаётся null: «цена не указана» и «ноль рублей» — разные вещи.
+  price: row.price === null ? null : Number(row.price),
   pricePerSqm: row.pricePerSqm,
   areaTotal: row.areaTotal,
   rooms: row.rooms,
@@ -82,6 +83,71 @@ const toCardView = (row: CardRow): PropertyCardView => ({
   imagesCount: row.imagesCount,
   coverUrl: row.images[0]?.storageKey ?? null,
 });
+
+export type PropertyDetail = PropertyCardView & {
+  readonly description: string | null;
+  readonly parking: boolean;
+  readonly status: string;
+  readonly tourSourceUrl: string | null;
+};
+
+/**
+ * Кому предназначено чтение. Параметр обязателен сознательно: выбор нельзя
+ * забыть, а значение по умолчанию однажды оказалось бы «показать всё».
+ */
+export type PropertyAudience = "staff" | "client";
+
+/**
+ * Статусы, которые допустимо показывать клиенту по ссылке. Черновик, снятый,
+ * проданный и сданный объект наружу не уходят: агент завёл их для себя, а не
+ * для показа.
+ */
+const CLIENT_VISIBLE_STATUSES = ["ACTIVE", "RESERVED"] as const;
+
+/**
+ * Один объект для карточки. Внутренние поля не запрашиваются: эта же выборка
+ * поедет на публичную страницу для клиента.
+ *
+ * Для `client` добавляется фильтр по статусу публикации. Одного `deletedAt` не
+ * хватает: без этого условия любой, кто угадал или получил идентификатор, видел
+ * бы черновики и снятые объекты с ценой и адресом.
+ */
+export async function getProperty(
+  id: string,
+  audience: PropertyAudience,
+): Promise<PropertyDetail | null> {
+  const { getPrisma } = await import("./prisma");
+
+  const row = await getPrisma().property.findFirst({
+    where: {
+      id,
+      deletedAt: null,
+      ...(audience === "client"
+        ? {
+            status: { in: [...CLIENT_VISIBLE_STATUSES] },
+            publishedAt: { not: null },
+          }
+        : {}),
+    },
+    select: {
+      ...CARD_SELECT,
+      description: true,
+      parking: true,
+      status: true,
+      tours: { select: { sourceUrl: true }, take: 1 },
+    },
+  });
+
+  if (row === null) return null;
+
+  return {
+    ...toCardView(row),
+    description: row.description,
+    parking: row.parking,
+    status: row.status,
+    tourSourceUrl: row.tours[0]?.sourceUrl ?? null,
+  };
+}
 
 export async function listProperties(filters: Filters): Promise<PropertyPage> {
   const { skip, take } = buildPagination(filters);

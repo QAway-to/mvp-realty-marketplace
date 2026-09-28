@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { logout } from "./logout/actions";
 import "./globals.css";
+import { getCurrentUser } from "@/lib/auth/session";
+import { isDemoMode } from "@/lib/properties";
 
 export const metadata: Metadata = {
   title: "Каталог объектов",
@@ -10,14 +13,29 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RootLayout({
+/**
+ * Пользователя в шапке нет, пока каталог работает на демо-данных: там нет базы,
+ * а значит и сессий. Это единственное место, где демо-режим виден в разметке.
+ */
+async function currentUserOrNull() {
+  if (isDemoMode()) return null;
+  try {
+    return await getCurrentUser();
+  } catch {
+    return null;
+  }
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const user = await currentUserOrNull();
+
   return (
     <html lang="ru">
       <body className="min-h-dvh bg-canvas text-ink antialiased">
         <header className="sticky top-0 z-10 border-b border-hairline-soft bg-canvas/95 backdrop-blur">
-          <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between px-6">
+          <div className="mx-auto flex h-20 max-w-[1280px] items-center justify-between gap-6 px-6">
             <Link href="/catalog" className="flex items-center gap-2">
               <span
                 className="grid h-8 w-8 place-items-center rounded-full bg-rausch text-white"
@@ -32,15 +50,31 @@ export default function RootLayout({
 
             <nav className="flex items-center gap-6 text-base font-semibold">
               <Link href="/catalog" className="text-ink">
-                Объекты
+                Каталог
               </Link>
+              {user !== null ? (
+                <Link href="/objects" className="text-ink">
+                  {user.role === "ADMIN" ? "Все объекты" : "Мои объекты"}
+                </Link>
+              ) : null}
               <span className="text-muted-soft" title="Появится в следующем этапе">
                 Подборки
               </span>
-              <span className="text-muted-soft" title="Появится в следующем этапе">
-                Справочники
-              </span>
             </nav>
+
+            {user !== null ? (
+              <div className="ml-auto flex items-center gap-3 text-sm">
+                <span className="text-muted">{user.name}</span>
+                <form action={logout}>
+                  <button
+                    type="submit"
+                    className="text-ink underline decoration-hairline underline-offset-4 hover:decoration-ink"
+                  >
+                    Выйти
+                  </button>
+                </form>
+              </div>
+            ) : null}
           </div>
         </header>
 

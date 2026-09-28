@@ -6,6 +6,7 @@ import { DEMO_DISTRICTS } from "@/lib/demo-data";
 import { PAGE_SIZE, parseFilters } from "@/lib/filters";
 import { formatFound } from "@/lib/format";
 import { isDemoMode, listProperties } from "@/lib/properties";
+import { listReferences } from "@/lib/references";
 
 export default async function CatalogPage(props: PageProps<"/catalog">) {
   const searchParams = await props.searchParams;
@@ -39,6 +40,14 @@ export default async function CatalogPage(props: PageProps<"/catalog">) {
   const { items, total } = await listProperties(filters);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Районы для фильтра приходят из справочника базы; в демо-режиме базы нет.
+  const districts = isDemoMode()
+    ? DEMO_DISTRICTS.map((district) => ({ value: district.id, label: district.name }))
+    : (await listReferences()).districts.map((district) => ({
+        value: district.id,
+        label: district.name,
+      }));
+
   const pageHref = (page: number) => {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(searchParams)) {
@@ -61,12 +70,7 @@ export default async function CatalogPage(props: PageProps<"/catalog">) {
         ) : null}
       </div>
 
-      <FilterBar
-        districts={DEMO_DISTRICTS.map((district) => ({
-          value: district.id,
-          label: district.name,
-        }))}
-      />
+      <FilterBar districts={districts} />
 
       <p className="text-sm text-muted">{formatFound(total)}</p>
 
