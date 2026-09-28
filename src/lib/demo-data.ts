@@ -159,14 +159,14 @@ export const queryDemo = (filters: Filters, skip: number, take: number) => {
  * добавляем, сперва открыв их.
  */
 export const DEMO_TOURS: Readonly<Record<string, string>> = {
-  "p-01": "https://my.matterport.com/show/?m=SxQL3iGyoDo",
+  "p-01": "https://realsee.ai/8VRR9e8a?at3d=1",
   "p-02": "https://kuula.co/share/collection/7l8Qn",
-  "p-03": "https://my.matterport.com/show/?m=SxQL3iGyoDo",
-  "p-06": "https://my.matterport.com/show/?m=SxQL3iGyoDo",
+  "p-03": "https://realsee.ai/EOxx9XLV?at3d=1",
+  "p-06": "https://realsee.ai/ZyKKxD4e?at3d=1",
   "p-07": "https://kuula.co/share/7ZFsh",
   "p-08": "https://kuula.co/share/7ZFsh",
   "p-11": "https://kuula.co/share/7ZFsh",
-  "p-13": "https://my.matterport.com/show/?m=SxQL3iGyoDo",
+  "p-13": "https://realsee.ai/jmxxR7qV?at3d=1",
   "p-15": "https://kuula.co/share/collection/7l8Qn",
   "p-16": "https://kuula.co/share/collection/7l8Qn",
 };

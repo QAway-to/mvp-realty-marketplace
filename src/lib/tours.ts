@@ -9,7 +9,7 @@
  * Обоснование и модель угроз — docs/adr/0002-3d-tour-embedding.md.
  */
 
-export type TourProvider = "MATTERPORT" | "KUULA" | "OTHER";
+export type TourProvider = "MATTERPORT" | "KUULA" | "REALSEE" | "OTHER";
 
 export type TourRejectionReason =
   | "not_a_url"
@@ -39,19 +39,35 @@ const PROVIDER_HOSTS: Readonly<Record<string, TourProvider>> = {
   "www.matterport.com": "MATTERPORT",
   "kuula.co": "KUULA",
   "www.kuula.co": "KUULA",
+  "realsee.ai": "REALSEE",
+  "www.realsee.ai": "REALSEE",
+  "realsee.cn": "REALSEE",
+  "www.realsee.cn": "REALSEE",
 };
 
-/** Источник правды и для валидации, и для `frame-src` в CSP. */
+/**
+ * Источник правды и для валидации, и для `frame-src` в CSP.
+ *
+ * Здесь только хосты самих страниц туров. CDN провайдеров (`realsee-cdn.com`,
+ * `ljcdn.com`, `static.matterport.com`) в список не входят и не должны: они
+ * загружаются внутри чужого iframe, то есть в его контексте, а не в нашем, и
+ * нашей политикой не управляются.
+ */
 export const TOUR_FRAME_SOURCES: readonly string[] = [
   "https://my.matterport.com",
   "https://matterport.com",
   "https://www.matterport.com",
   "https://kuula.co",
   "https://www.kuula.co",
+  "https://realsee.ai",
+  "https://www.realsee.ai",
+  "https://realsee.cn",
+  "https://www.realsee.cn",
 ];
 
 const MATTERPORT_ID = /^[A-Za-z0-9]{6,32}$/;
 const KUULA_ID = /^[A-Za-z0-9_-]{3,64}$/;
+const REALSEE_ID = /^[A-Za-z0-9]{6,24}$/;
 
 /** Matterport: `https://my.matterport.com/show/?m=<id>`. */
 function parseMatterport(url: URL): string | null {
@@ -77,6 +93,24 @@ function parseKuula(url: URL): string | null {
   return `https://kuula.co/${path}?fs=1&vr=1&thumbs=1`;
 }
 
+/**
+ * Realsee: `https://realsee.ai/<code>?at3d=1`. Домен сохраняем — у китайского
+ * и международного контуров разные ссылки, и подменять один другим нельзя:
+ * тур, снятый в одном, во втором не найдётся.
+ *
+ * `at3d=1` включает трёхмерный режим, ради которого провайдера и берут.
+ */
+function parseRealsee(url: URL): string | null {
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments.length !== 1) return null;
+
+  const code = segments[0];
+  if (code === undefined || !REALSEE_ID.test(code)) return null;
+
+  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  return `https://${host}/${code}?at3d=1`;
+}
+
 export function parseTourUrl(rawUrl: string): TourParseResult {
   const trimmed = rawUrl.trim();
 
@@ -99,7 +133,11 @@ export function parseTourUrl(rawUrl: string): TourParseResult {
   }
 
   const embedUrl =
-    provider === "MATTERPORT" ? parseMatterport(url) : parseKuula(url);
+    provider === "MATTERPORT"
+      ? parseMatterport(url)
+      : provider === "KUULA"
+        ? parseKuula(url)
+        : parseRealsee(url);
 
   if (embedUrl === null) {
     return { ok: false, reason: "tour_id_not_found" };
@@ -122,7 +160,7 @@ export const TOUR_REJECTION_MESSAGES: Readonly<
   not_a_url: "Это не похоже на ссылку. Скопируйте адрес тура из браузера.",
   not_https: "Ссылка должна начинаться с https://.",
   host_not_allowed:
-    "Мы встраиваем туры только с Matterport и Kuula. Пришлите ссылку с одного из этих сервисов.",
+    "Мы встраиваем туры с Realsee, Kuula и Matterport. Пришлите ссылку с одного из этих сервисов. Учтите: туры Matterport не открываются у клиентов из России.",
   tour_id_not_found:
     "В ссылке не нашёлся идентификатор тура. Нужна ссылка «Поделиться», а не адрес личного кабинета.",
 };

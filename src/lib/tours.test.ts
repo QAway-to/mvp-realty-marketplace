@@ -118,3 +118,71 @@ describe("TOUR_FRAME_SOURCES", () => {
     expect(TOUR_FRAME_SOURCES).toContain("https://www.kuula.co");
   });
 });
+
+describe("parseTourUrl: Realsee", () => {
+  it("разбирает ссылку международного контура", () => {
+    const result = parseTourUrl("https://realsee.ai/8VRR9e8a?at3d=1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.tour.provider).toBe("REALSEE");
+    expect(result.tour.embedUrl).toBe("https://realsee.ai/8VRR9e8a?at3d=1");
+  });
+
+  it("включает трёхмерный режим, даже если его не было в ссылке", () => {
+    const result = parseTourUrl("https://realsee.ai/8VRR9e8a");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.tour.embedUrl).toBe("https://realsee.ai/8VRR9e8a?at3d=1");
+  });
+
+  it("не подменяет китайский контур международным", () => {
+    const result = parseTourUrl("https://realsee.cn/red0qR2w?at3d=1");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.tour.embedUrl).toBe("https://realsee.cn/red0qR2w?at3d=1");
+  });
+
+  it("нормализует www к основному хосту", () => {
+    const result = parseTourUrl("https://www.realsee.ai/8VRR9e8a");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.tour.embedUrl).toBe("https://realsee.ai/8VRR9e8a?at3d=1");
+  });
+
+  it("отклоняет вложенный путь: у тура код лежит в корне", () => {
+    expect(parseTourUrl("https://realsee.ai/blogs/help-center")).toEqual({
+      ok: false,
+      reason: "tour_id_not_found",
+    });
+  });
+
+  it("отклоняет корень сайта без кода тура", () => {
+    expect(parseTourUrl("https://realsee.ai/")).toEqual({
+      ok: false,
+      reason: "tour_id_not_found",
+    });
+  });
+
+  it("отклоняет код с посторонними символами", () => {
+    expect(parseTourUrl('https://realsee.ai/8VRR"><script>')).toEqual({
+      ok: false,
+      reason: "tour_id_not_found",
+    });
+  });
+
+  it("не принимает похожий чужой домен", () => {
+    expect(parseTourUrl("https://realsee.ai.attacker.net/8VRR9e8a")).toEqual({
+      ok: false,
+      reason: "host_not_allowed",
+    });
+  });
+
+  it("попадает в frame-src нашей CSP", () => {
+    expect(TOUR_FRAME_SOURCES).toContain("https://realsee.ai");
+    expect(TOUR_FRAME_SOURCES).toContain("https://realsee.cn");
+  });
+});

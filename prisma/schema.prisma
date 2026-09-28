@@ -248,6 +248,7 @@ model PropertyImage {
 enum TourProvider {
   MATTERPORT
   KUULA
+  REALSEE
   OTHER
 }
 
