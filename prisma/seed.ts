@@ -16,12 +16,15 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/lib/auth/password";
 
+import { isLocalDatabase } from "./db-host";
+
 if (existsSync(".env")) process.loadEnvFile(".env");
 
-const connectionString = process.env.DATABASE_URL;
-if (connectionString === undefined || connectionString === "") {
+const rawDatabaseUrl = process.env.DATABASE_URL;
+if (rawDatabaseUrl === undefined || rawDatabaseUrl === "") {
   throw new Error("DATABASE_URL не задан");
 }
+const connectionString: string = rawDatabaseUrl;
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
@@ -82,8 +85,12 @@ async function seedReferences(): Promise<void> {
 }
 
 /**
- * Пароль берётся из окружения, иначе генерируется и печатается один раз. Второй
- * возможности его увидеть не будет — в базе лежит только хеш.
+ * Пароль берётся из `ADMIN_PASSWORD`.
+ *
+ * Если переменной нет, случайный пароль генерируется и печатается — но только на
+ * локальной базе. На удалённой сиды прекращают работу с объяснением: без Shell
+ * единственным местом, где виден такой пароль, окажется лог деплоя, а он
+ * хранится и доступен всем, у кого есть доступ к панели. Секрету там не место.
  */
 async function seedAdmin(): Promise<void> {
   const email = (process.env.ADMIN_EMAIL ?? "admin@agency.local").toLowerCase();
@@ -98,6 +105,20 @@ async function seedAdmin(): Promise<void> {
   }
 
   const fromEnv = process.env.ADMIN_PASSWORD;
+
+  if (fromEnv === undefined || fromEnv === "") {
+    if (!isLocalDatabase(connectionString)) {
+      throw new Error(
+        [
+          "ADMIN_PASSWORD не задан, а база не локальная.",
+          "Задайте ADMIN_PASSWORD в переменных окружения сервиса и перезапустите деплой.",
+          "Генерировать пароль здесь нельзя: увидеть его можно было бы только в логе, а логи хранятся.",
+        ].join(" "),
+      );
+    }
+    console.log("ADMIN_PASSWORD не задан — генерирую случайный (локальная база)");
+  }
+
   const password = fromEnv ?? randomBytes(12).toString("base64url");
 
   await prisma.user.upsert({
@@ -113,7 +134,7 @@ async function seedAdmin(): Promise<void> {
   });
 
   console.log(`Администратор создан: ${email}`);
-  if (fromEnv === undefined) {
+  if (fromEnv === undefined || fromEnv === "") {
     console.log(`Пароль (показывается один раз): ${password}`);
   }
 }

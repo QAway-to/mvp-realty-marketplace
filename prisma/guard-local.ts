@@ -11,6 +11,8 @@
 
 import { existsSync } from "node:fs";
 
+import { databaseHostname, isLocalDatabase } from "./db-host";
+
 if (existsSync(".env")) process.loadEnvFile(".env");
 
 const connectionString = process.env.DATABASE_URL;
@@ -19,17 +21,13 @@ if (connectionString === undefined || connectionString === "") {
   process.exit(1);
 }
 
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "host.docker.internal"]);
-
-let hostname: string;
-try {
-  hostname = new URL(connectionString).hostname;
-} catch {
+const hostname = databaseHostname(connectionString);
+if (hostname === null) {
   console.error("DATABASE_URL не разбирается как URL");
   process.exit(1);
 }
 
-if (!LOCAL_HOSTS.has(hostname)) {
+if (!isLocalDatabase(connectionString)) {
   console.error(
     [
       `Отказ: DATABASE_URL указывает на ${hostname}, а не на локальную базу.`,

@@ -16,7 +16,8 @@
     "db:deploy": "npm run db:setup && prisma migrate deploy",
     "prebuild": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "db:setup": "tsx prisma/ensure-schema.ts"
+    "db:setup": "tsx prisma/ensure-schema.ts",
+    "start:render": "npm run db:deploy && npm run db:seed && next start"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
