@@ -43,16 +43,32 @@ export function TourFrame({ sourceUrl }: TourFrameProps) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[var(--radius-card)] border border-hairline-soft bg-surface-soft">
-      <iframe
-        src={tour.embedUrl}
-        title="3D-тур по объекту"
-        loading="lazy"
-        allow="fullscreen; xr-spatial-tracking; gyroscope; accelerometer"
-        sandbox="allow-scripts allow-same-origin allow-popups"
-        referrerPolicy="strict-origin-when-cross-origin"
-        className="aspect-video w-full border-0"
-      />
+    <div className="flex flex-col gap-2">
+      <div className="overflow-hidden rounded-[var(--radius-card)] border border-hairline-soft bg-surface-soft">
+        <iframe
+          src={tour.embedUrl}
+          title="3D-тур по объекту"
+          loading="lazy"
+          allow="fullscreen; xr-spatial-tracking; gyroscope; accelerometer"
+          sandbox="allow-scripts allow-same-origin allow-popups"
+          referrerPolicy="strict-origin-when-cross-origin"
+          className="aspect-video w-full border-0"
+        />
+      </div>
+
+      {/*
+        Если модель удалили или закрыли на стороне провайдера, внутри iframe мы
+        об этом не узнаём — окно чужое. Ссылка рядом даёт агенту проверить тур
+        самому, а не решать, что сломался каталог.
+      */}
+      <a
+        href={tour.sourceUrl}
+        target="_blank"
+        rel="noreferrer noopener external"
+        className="self-start text-[13px] text-muted underline decoration-hairline underline-offset-4 hover:text-ink"
+      >
+        Открыть тур в новой вкладке
+      </a>
     </div>
   );
 }

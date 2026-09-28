@@ -152,18 +152,23 @@ export const queryDemo = (filters: Filters, skip: number, take: number) => {
 /**
  * Ссылки на публичные демо-туры Matterport и Kuula. Проходят через тот же
  * `parseTourUrl`, что и всё остальное: демо-данные не повод обходить валидацию.
+ *
+ * Каждый идентификатор проверен запросом — модель отвечает 200 и открывается.
+ * Выдуманный ID выглядит в коде совершенно так же, как настоящий, а ломается
+ * только в браузере словами «модель недоступна», поэтому новые ссылки сюда
+ * добавляем, сперва открыв их.
  */
 export const DEMO_TOURS: Readonly<Record<string, string>> = {
   "p-01": "https://my.matterport.com/show/?m=SxQL3iGyoDo",
   "p-02": "https://kuula.co/share/collection/7l8Qn",
-  "p-03": "https://my.matterport.com/show/?m=BEcCqmoAyqp",
+  "p-03": "https://my.matterport.com/show/?m=SxQL3iGyoDo",
   "p-06": "https://my.matterport.com/show/?m=SxQL3iGyoDo",
   "p-07": "https://kuula.co/share/7ZFsh",
-  "p-08": "https://my.matterport.com/show/?m=BEcCqmoAyqp",
+  "p-08": "https://kuula.co/share/7ZFsh",
   "p-11": "https://kuula.co/share/7ZFsh",
   "p-13": "https://my.matterport.com/show/?m=SxQL3iGyoDo",
   "p-15": "https://kuula.co/share/collection/7l8Qn",
-  "p-16": "https://my.matterport.com/show/?m=BEcCqmoAyqp",
+  "p-16": "https://kuula.co/share/collection/7l8Qn",
 };
 
 export const findDemoProperty = (id: string) =>
