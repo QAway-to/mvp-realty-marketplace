@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 /**
  * Prisma 7 больше не принимает `url` в schema.prisma: строка подключения живёт
@@ -14,9 +14,17 @@ if (existsSync(".env")) {
   process.loadEnvFile(".env");
 }
 
+const connectionString = process.env.DATABASE_URL;
+
+/**
+ * `datasource` подставляем только когда строка подключения действительно есть.
+ * `generate` в базу не ходит, и первая сборка на Render не должна падать лишь
+ * потому, что Postgres к сервису ещё не привязали. Команды миграций без
+ * `DATABASE_URL` скажут об этом сами.
+ */
 export default defineConfig({
   schema: "prisma/schema.prisma",
-  datasource: {
-    url: env("DATABASE_URL"),
-  },
+  ...(connectionString !== undefined && connectionString !== ""
+    ? { datasource: { url: connectionString } }
+    : {}),
 });

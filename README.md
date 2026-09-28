@@ -67,8 +67,35 @@ npm run build
 загрузка фото (E3, нужно хранилище из ADR 0003), справочники (E5), подборки и
 публичные ссылки клиенту (E6).
 
-## Деплой
+## Деплой на Render
 
-Render Web Service, managed Postgres. Инстанс заводится руками в панели:
-`render.yaml` в репозитории не источник правды. Миграции применяются
-командой `npm run db:deploy` на деплое.
+Сервис заводится руками в панели. `render.yaml` в репозитории сознательно нет:
+тариф, переменные и тип сервиса живут в панели, а файл в репозитории лишь создавал бы
+иллюзию источника правды.
+
+**New → Web Service**, репозиторий `QAway-to/mvp-realty-marketplace`, ветка `main`.
+
+| Настройка | Значение |
+|---|---|
+| Runtime | Node |
+| Build Command | `npm ci && npm run build` |
+| Start Command | `npm run start` |
+| Node version | берётся из `.node-version` (22) |
+
+`prisma generate` запускается сам: он прописан в `prebuild`, потому что
+сгенерированный клиент в репозиторий не коммитится.
+
+**Переменные окружения:**
+
+| Переменная | Когда нужна |
+|---|---|
+| `DATABASE_URL` | Internal Database URL от Render Postgres |
+| `USE_DEMO_DATA=1` | Пока Postgres не привязан — сервис поднимется на демо-объектах |
+
+Порт Next берёт из `PORT`, который Render задаёт сам.
+
+**Миграции.** После привязки Postgres примените схему — `npm run db:deploy`
+(одноразово через Render Shell или как Pre-Deploy Command). Затем уберите
+`USE_DEMO_DATA`, и каталог начнёт читать базу.
+
+Деплой идёт автоматически на push в `main`.
