@@ -7,7 +7,9 @@
  */
 
 import { PrismaPg } from "@prisma/adapter-pg";
+
 import { PrismaClient } from "@/generated/prisma/client";
+import { DATABASE_SCHEMA, withSchema } from "@/lib/db-schema";
 
 const createClient = (): PrismaClient => {
   const connectionString = process.env.DATABASE_URL;
@@ -17,7 +19,14 @@ const createClient = (): PrismaClient => {
     );
   }
 
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+  // Схема задаётся и в строке подключения, и параметром адаптера: первое влияет
+  // на search_path соединения, второе — на имена в генерируемых запросах.
+  return new PrismaClient({
+    adapter: new PrismaPg(
+      { connectionString: withSchema(connectionString) },
+      { schema: DATABASE_SCHEMA },
+    ),
+  });
 };
 
 const globalForPrisma = globalThis as typeof globalThis & {

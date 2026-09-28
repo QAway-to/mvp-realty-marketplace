@@ -1,6 +1,8 @@
 import { existsSync } from "node:fs";
 import { defineConfig } from "prisma/config";
 
+import { withSchema } from "./src/lib/db-schema";
+
 /**
  * Prisma 7 больше не принимает `url` в schema.prisma: строка подключения живёт
  * здесь, а клиент в рантайме получает адаптер. Схема остаётся чистым описанием
@@ -21,10 +23,13 @@ const connectionString = process.env.DATABASE_URL;
  * `generate` в базу не ходит, и первая сборка на Render не должна падать лишь
  * потому, что Postgres к сервису ещё не привязали. Команды миграций без
  * `DATABASE_URL` скажут об этом сами.
+ *
+ * Схему навязываем здесь же: миграции обязаны попасть в нашу схему, а не в
+ * `public` — см. src/lib/db-schema.ts.
  */
 export default defineConfig({
   schema: "prisma/schema.prisma",
   ...(connectionString !== undefined && connectionString !== ""
-    ? { datasource: { url: connectionString } }
+    ? { datasource: { url: withSchema(connectionString) } }
     : {}),
 });

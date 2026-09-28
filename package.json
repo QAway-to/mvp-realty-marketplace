@@ -12,10 +12,11 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
+    "db:migrate": "npm run db:setup && prisma migrate dev",
+    "db:deploy": "npm run db:setup && prisma migrate deploy",
     "prebuild": "prisma generate",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:setup": "tsx prisma/ensure-schema.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

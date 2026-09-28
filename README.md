@@ -38,12 +38,19 @@ USE_DEMO_DATA="1"
 docker run -d --name realty-pg -p 5432:5432 \
   -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=realty postgres:17
 
-npm run db:migrate    # применит схему
+npm run db:migrate    # создаст схему приложения и применит миграции
 npm run db:seed       # администратор и справочники городов
 npm run db:generate   # перегенерирует клиент после правок schema.prisma
 ```
 
 Уберите `USE_DEMO_DATA` из `.env` — приложение начнёт читать базу.
+
+**Таблицы живут в отдельной схеме `realty`, а не в `public`.** База может быть общей
+с другим сервисом, и тогда `public` превращается в свалку, где чужая миграция способна
+задеть наши таблицы, а наша — чужие. Схема создаётся сама перед миграциями (`db:setup`
+вызывается внутри `db:migrate` и `db:deploy`), имя переопределяется переменной
+`DATABASE_SCHEMA`. Параметр `schema` в `DATABASE_URL` перезаписывается сознательно:
+забытый `schema=public` не должен тихо разложить таблицы в общую схему.
 
 Сиды создают администратора. Email берётся из `ADMIN_EMAIL` (по умолчанию
 `admin@agency.local`), пароль — из `ADMIN_PASSWORD`, а если его не задать,
@@ -54,7 +61,7 @@ npm run db:generate   # перегенерирует клиент после п�
 ## Проверки
 
 ```bash
-npm test            # 44 unit-теста: парсер фильтров и разбор ссылок на туры
+npm test            # 102 unit-теста: фильтры, ссылки на туры, форма объекта, вход
 npm run test:coverage
 npm run typecheck
 npm run lint
@@ -105,6 +112,7 @@ npm run build
 | Переменная | Когда нужна |
 |---|---|
 | `DATABASE_URL` | Internal Database URL от Render Postgres |
+| `DATABASE_SCHEMA` | Необязательно. По умолчанию `realty` — таблицы не в `public` |
 | `USE_DEMO_DATA=1` | Пока Postgres не привязан — сервис поднимется на демо-объектах |
 
 Порт Next берёт из `PORT`, который Render задаёт сам.
