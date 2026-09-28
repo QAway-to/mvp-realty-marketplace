@@ -3,8 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { setStatus, softDeleteProperty, updateProperty } from "../../actions";
+import { PhotoManager } from "../../PhotoManager";
 import { PropertyForm, type PropertyFormValues } from "../../PropertyForm";
 import { canEditProperty, requireUser } from "@/lib/auth/guards";
+import { imageUrl } from "@/lib/images";
 import { getPrisma } from "@/lib/prisma";
 import { listReferences } from "@/lib/references";
 
@@ -33,6 +35,10 @@ export default async function EditPropertyPage(
     where: { id, deletedAt: null },
     include: {
       tours: { select: { sourceUrl: true }, take: 1 },
+      images: {
+        select: { id: true, storageKey: true, isCover: true },
+        orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }],
+      },
       activityLog: {
         select: { action: true, createdAt: true, user: { select: { name: true } } },
         orderBy: { createdAt: "desc" },
@@ -135,6 +141,15 @@ export default async function EditPropertyPage(
           </button>
         </form>
       </div>
+
+      <PhotoManager
+        propertyId={property.id}
+        photos={property.images.map((image) => ({
+          id: image.id,
+          url: imageUrl(image.storageKey),
+          isCover: image.isCover,
+        }))}
+      />
 
       <PropertyForm
         action={update}

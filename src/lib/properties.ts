@@ -8,6 +8,7 @@
  */
 
 import { queryDemo } from "./demo-data";
+import { imageUrl } from "./images";
 import {
   buildOrderBy,
   buildPagination,
@@ -66,7 +67,10 @@ type CardRow = {
   readonly imagesCount: number;
   readonly district: { readonly name: string } | null;
   readonly complex: { readonly name: string } | null;
-  readonly images: readonly { readonly storageKey: string }[];
+  readonly images: readonly {
+    readonly storageKey: string;
+    readonly alt?: string | null;
+  }[];
   readonly tours: readonly { readonly previewImageUrl: string | null }[];
 };
 
@@ -89,7 +93,10 @@ const toCardView = (row: CardRow): PropertyCardView => ({
   hasTour: row.hasTour,
   imagesCount: row.imagesCount,
   // Своя фотография важнее: превью тура — заглушка на время, пока фото нет.
-  coverUrl: row.images[0]?.storageKey ?? row.tours[0]?.previewImageUrl ?? null,
+  coverUrl:
+    row.images[0] !== undefined
+      ? imageUrl(row.images[0].storageKey)
+      : (row.tours[0]?.previewImageUrl ?? null),
 });
 
 export type PropertyDetail = PropertyCardView & {
@@ -97,6 +104,8 @@ export type PropertyDetail = PropertyCardView & {
   readonly parking: boolean;
   readonly status: string;
   readonly tourSourceUrl: string | null;
+  /** Все фотографии по порядку — для галереи на странице объекта. */
+  readonly photos: readonly { readonly url: string; readonly alt: string | null }[];
 };
 
 /**
@@ -143,6 +152,13 @@ export async function getProperty(
       parking: true,
       status: true,
       tours: { select: { sourceUrl: true, previewImageUrl: true }, take: 1 },
+      // Перекрываем выборку из CARD_SELECT: карточке нужна одна обложка, а
+      // странице объекта — вся галерея. Обложка идёт первой, поэтому `images[0]`
+      // по-прежнему годится для `toCardView`.
+      images: {
+        select: { storageKey: true, alt: true },
+        orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }],
+      },
     },
   });
 
@@ -154,6 +170,10 @@ export async function getProperty(
     parking: row.parking,
     status: row.status,
     tourSourceUrl: row.tours[0]?.sourceUrl ?? null,
+    photos: row.images.map((image) => ({
+      url: imageUrl(image.storageKey),
+      alt: image.alt,
+    })),
   };
 }
 

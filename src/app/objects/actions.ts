@@ -12,6 +12,12 @@ import {
   parsePropertyForm,
   type PropertyFormInput,
 } from "@/lib/property-form";
+import {
+  blobIdFromKey,
+  MAX_IMAGES_PER_PROPERTY,
+  processImage,
+  toDbKey,
+} from "@/lib/images";
 import { fetchTourPreview } from "@/lib/tour-preview";
 import { parseTourUrl } from "@/lib/tours";
 
@@ -287,4 +293,190 @@ export async function softDeleteProperty(propertyId: string): Promise<void> {
   revalidatePath("/objects");
   revalidatePath("/catalog");
   redirect("/objects");
+}
+
+/**
+ * Загрузка фотографий.
+ *
+ * Сжатие идёт до транзакции: `sharp` на нескольких снимках работает секунды, и
+ * держать транзакцию открытой всё это время нельзя. В транзакции — только
+ * запись байтов, строк и пересчёт `imagesCount`, который иначе разойдётся с
+ * фактическим числом фото и соврёт фильтру «только с фото».
+ */
+export async function uploadPhotos(
+  propertyId: string,
+  form: FormData,
+): Promise<void> {
+  const user = await requireUser();
+  const prisma = getPrisma();
+
+  const existing = await prisma.property.findFirst({
+    where: { id: propertyId, deletedAt: null },
+    select: { ownerId: true, imagesCount: true },
+  });
+  if (existing === null || !canEditProperty(user, existing.ownerId)) return;
+
+  const files = form
+    .getAll("photos")
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+    .slice(0, MAX_IMAGES_PER_PROPERTY - existing.imagesCount);
+
+  if (files.length === 0) return;
+
+  const processed = await Promise.all(files.map(processImage));
+  const accepted = processed.flatMap((result) =>
+    result.ok ? [result.image] : [],
+  );
+  if (accepted.length === 0) return;
+
+  await prisma.$transaction(async (tx) => {
+    let sortOrder = existing.imagesCount;
+
+    for (const image of accepted) {
+      const blob = await tx.imageBlob.create({
+        data: {
+          data: image.data,
+          contentType: image.contentType,
+          byteSize: image.data.byteLength,
+        },
+        select: { id: true },
+      });
+
+      await tx.propertyImage.create({
+        data: {
+          propertyId,
+          storageKey: toDbKey(blob.id),
+          width: image.width,
+          height: image.height,
+          sortOrder,
+          // Первая загруженная фотография становится обложкой сама: без этого
+          // карточка осталась бы с превью тура, хотя снимки уже есть.
+          isCover: sortOrder === 0,
+        },
+      });
+
+      sortOrder += 1;
+    }
+
+    await tx.property.update({
+      where: { id: propertyId },
+      data: { imagesCount: { increment: accepted.length } },
+    });
+
+    await tx.activityLog.create({
+      data: {
+        propertyId,
+        userId: user.id,
+        action: "photos_added",
+        changedFields: { count: accepted.length },
+      },
+    });
+  });
+
+  revalidatePath("/objects");
+  revalidatePath(`/objects/${propertyId}/edit`);
+  revalidatePath("/catalog");
+  revalidatePath(`/catalog/${propertyId}`);
+}
+
+export async function deletePhoto(
+  propertyId: string,
+  form: FormData,
+): Promise<void> {
+  const user = await requireUser();
+  const prisma = getPrisma();
+
+  const imageId = form.get("imageId");
+  if (typeof imageId !== "string" || imageId === "") return;
+
+  const property = await prisma.property.findFirst({
+    where: { id: propertyId, deletedAt: null },
+    select: { ownerId: true },
+  });
+  if (property === null || !canEditProperty(user, property.ownerId)) return;
+
+  const image = await prisma.propertyImage.findFirst({
+    where: { id: imageId, propertyId },
+    select: { id: true, storageKey: true, isCover: true },
+  });
+  if (image === null) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.propertyImage.delete({ where: { id: image.id } });
+
+    // Байты живут отдельной таблицей, каскад их не заберёт — удаляем сами,
+    // иначе база демо-стенда обрастёт осиротевшими снимками.
+    const blobId = blobIdFromKey(image.storageKey);
+    if (blobId !== null) {
+      await tx.imageBlob.deleteMany({ where: { id: blobId } });
+    }
+
+    await tx.property.update({
+      where: { id: propertyId },
+      data: { imagesCount: { decrement: 1 } },
+    });
+
+    // Обложку удалили — назначаем следующую, иначе карточка останется без неё
+    // при наличии других фотографий.
+    if (image.isCover) {
+      const next = await tx.propertyImage.findFirst({
+        where: { propertyId },
+        orderBy: { sortOrder: "asc" },
+        select: { id: true },
+      });
+      if (next !== null) {
+        await tx.propertyImage.update({
+          where: { id: next.id },
+          data: { isCover: true },
+        });
+      }
+    }
+
+    await tx.activityLog.create({
+      data: { propertyId, userId: user.id, action: "photo_deleted" },
+    });
+  });
+
+  revalidatePath(`/objects/${propertyId}/edit`);
+  revalidatePath("/catalog");
+  revalidatePath(`/catalog/${propertyId}`);
+}
+
+export async function setCoverPhoto(
+  propertyId: string,
+  form: FormData,
+): Promise<void> {
+  const user = await requireUser();
+  const prisma = getPrisma();
+
+  const imageId = form.get("imageId");
+  if (typeof imageId !== "string" || imageId === "") return;
+
+  const property = await prisma.property.findFirst({
+    where: { id: propertyId, deletedAt: null },
+    select: { ownerId: true },
+  });
+  if (property === null || !canEditProperty(user, property.ownerId)) return;
+
+  const image = await prisma.propertyImage.findFirst({
+    where: { id: imageId, propertyId },
+    select: { id: true },
+  });
+  if (image === null) return;
+
+  // Обложка ровно одна: сначала снимаем со всех, потом ставим одной.
+  await prisma.$transaction([
+    prisma.propertyImage.updateMany({
+      where: { propertyId },
+      data: { isCover: false },
+    }),
+    prisma.propertyImage.update({
+      where: { id: image.id },
+      data: { isCover: true },
+    }),
+  ]);
+
+  revalidatePath(`/objects/${propertyId}/edit`);
+  revalidatePath("/catalog");
+  revalidatePath(`/catalog/${propertyId}`);
 }

@@ -253,6 +253,25 @@ model Property {
   @@index([ownerId])
 }
 
+/**
+ * Байты фотографии.
+ *
+ * На время демо снимки лежат в базе. Отдельная таблица, а не колонка в
+ * `PropertyImage`: иначе любая выборка списка фотографий тащила бы мегабайты,
+ * даже когда нужны только размеры и порядок.
+ *
+ * `PropertyImage.storageKey` хранит ключ с префиксом бэкенда (`db:<id>`), поэтому
+ * переезд в объектное хранилище — это новый префикс и новый резолвер, без правки
+ * остальной модели.
+ */
+model ImageBlob {
+  id          String   @id @default(cuid())
+  data        Bytes
+  contentType String
+  byteSize    Int
+  createdAt   DateTime @default(now())
+}
+
 model PropertyImage {
   id         String @id @default(cuid())
   propertyId String

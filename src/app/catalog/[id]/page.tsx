@@ -39,6 +39,7 @@ export default async function PropertyPage(props: PageProps<"/catalog/[id]">) {
 
   const parking = fromDemo !== null ? fromDemo.parking : (fromDb?.parking ?? false);
 
+  const photos = fromDb?.photos ?? [];
   const area = formatArea(property.areaTotal);
   const pricePerSqm = formatPricePerSqm(property.pricePerSqm);
 
@@ -103,7 +104,24 @@ export default async function PropertyPage(props: PageProps<"/catalog/[id]">) {
 
           <section className="flex flex-col gap-3">
             <h2 className="text-[20px] font-semibold tracking-tight">Фотографии</h2>
-            {property.coverUrl !== null ? (
+            {photos.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {photos.map((photo) => (
+                  <div
+                    key={photo.url}
+                    className="overflow-hidden rounded-[var(--radius-control)] bg-surface-soft"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element -- отдаём из своего маршрута, next/image тут лишний слой */}
+                    <img
+                      src={photo.url}
+                      alt={photo.alt ?? property.title}
+                      loading="lazy"
+                      className="aspect-4/3 w-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : property.coverUrl !== null ? (
               <>
                 <div className="overflow-hidden rounded-[var(--radius-card)] bg-surface-soft">
                   {/* eslint-disable-next-line @next/next/no-img-element -- картинка с CDN провайдера тура */}
@@ -114,16 +132,12 @@ export default async function PropertyPage(props: PageProps<"/catalog/[id]">) {
                   />
                 </div>
                 <p className="text-[13px] text-muted">
-                  Это кадр из 3D-тура. Свои фотографии появятся вместе с
-                  хранилищем — см. adr/0003.
+                  Это кадр из 3D-тура. Своих фотографий у объекта пока нет.
                 </p>
               </>
             ) : (
               <div className="rounded-[var(--radius-card)] border border-dashed border-hairline bg-surface-soft p-8 text-center">
-                <p className="text-sm text-muted">
-                  Фотографий пока нет. Загрузка появится вместе с хранилищем,
-                  см. adr/0003.
-                </p>
+                <p className="text-sm text-muted">Фотографий пока нет.</p>
               </div>
             )}
           </section>

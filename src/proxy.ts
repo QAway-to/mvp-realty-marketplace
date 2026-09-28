@@ -12,7 +12,15 @@ import { SESSION_COOKIE } from "@/lib/auth/cookie";
  *
  * В Next 16 файл называется `proxy`, а не `middleware`, и работает на Node.
  */
-const PUBLIC_PREFIXES = ["/login", "/share", "/_next", "/favicon"];
+const PUBLIC_PREFIXES = [
+  "/login",
+  "/share",
+  // Фотографии отдаются по неугадываемому идентификатору и нужны клиенту, у
+  // которого сессии нет. Внутренних полей объекта картинка не раскрывает.
+  "/api/images",
+  "/_next",
+  "/favicon",
+];
 
 /**
  * Сравнение с границей сегмента, а не просто `startsWith`.
